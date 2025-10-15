@@ -1,3 +1,10 @@
+# Developer’s Note
+This project, titled BriefPort, is being developed as part of my Final Year Project (FYP). The system is designed to provide intelligent document services, including summarization, report generation, and document-based conversational interactions.
+
+At this stage, the focus of development is on the backend system, which manages core functionalities such as file processing, text extraction, transcription, summarization, and response generation.
+
+The frontend component of the project is currently under development and will be integrated with the backend to deliver a complete web application experience. The frontend will enable users to interact with the system through a user-friendly interface for uploading files, viewing summaries, generating reports, and engaging in document chat.
+
 # 📑 BriefPort A Smart Document Assistant
 
 BriefPort is an intelligent web application designed to make sense of your information fast. Whether it’s a document, audio, or video, BriefPort transforms complex content into concise summaries, actionable reports, and interactive chats, all in one unified platform.
