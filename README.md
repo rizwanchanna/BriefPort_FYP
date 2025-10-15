@@ -33,6 +33,29 @@ BriefPort is an intelligent web application designed to make sense of your infor
 - Document Processing: Langchain, FFmpeg, Whisper
 - Database: SQLalchemy
 
+## 🔧 Environment Variables
+
+Before running the project, create a .env file in the root directory and add the following variables:
+
+``` bash
+# Security
+SECRET_KEY="YOUR_SECRET_KEY"  # You can generate one using:
+# python -c "import secrets; print(secrets.token_urlsafe(64))"
+
+ALGORITHM="HS256"
+
+# Application Links
+BACK_LINK="http://localhost:8000"
+
+# API Keys
+HF_TOKEN="YOUR_HUGGING_FACE_TOKEN"
+OPEN_ROUTER_KEY="YOUR_OPEN_ROUTER_KEY"  # e.g. for model: openai/gpt-oss-20b:free
+
+# Email Configuration
+SMTP_EMAIL="YOUR_GMAIL_ACCOUNT"
+SMTP_PASSWORD="YOUR_GMAIL_APP_PASSWORD"
+```
+
 ## 🚀 Getting Started
 
 ```bash
