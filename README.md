@@ -1,4 +1,4 @@
-# 📑 Smart Document Assistant
+# 📑 BriefPort A Smart Document Assistant
 
 BriefPort is an intelligent web application designed to make sense of your information fast. Whether it’s a document, audio, or video, BriefPort transforms complex content into concise summaries, actionable reports, and interactive chats, all in one unified platform.
 
