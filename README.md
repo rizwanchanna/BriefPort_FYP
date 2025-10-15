@@ -80,7 +80,8 @@ uvicorn main:app
 4. Get instant summaries and reports
 5. Chat with your documents
 
-Note: You can generate multiple summaries and reports
+Note: Once the server is running, you can test the API using Swagger UI by visiting http://localhost:8000/docs or through Postman by importing the API endpoints.
+This backend handles authentication, document processing, and AI-powered services, while the frontend is still under development.
 
 ### 💡 **Use Cases**
 
