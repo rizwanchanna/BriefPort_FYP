@@ -17,7 +17,7 @@ os.environ["HF_TOKEN"] = settings.HF_TOKEN
 CHROMA_DB_PATH = "./chroma_db"
 CHROMA_COLLECTION_NAME = "documents"
 
-embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+embedding_model = SentenceTransformer("BAAI/bge-m3")
 chroma_client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
 chroma_collection = chroma_client.get_or_create_collection(name=CHROMA_COLLECTION_NAME)
 

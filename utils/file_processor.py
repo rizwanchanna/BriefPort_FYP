@@ -46,11 +46,12 @@ def process_document_ingestion(doc_id: int, filepath: str):
         chunks = text_splitter.split_text(extracted_content)
         embeddings = embedding_model.encode(chunks).tolist()
         chunk_ids = [f"doc{doc_id}_chunk{i}" for i in range(len(chunks))]
+        # include owner_id and filename in metadata so we can run owner-level (multi-doc) queries
         chroma_collection.add(
-          ids=chunk_ids,
-          embeddings=embeddings,
-          documents=chunks,
-          metadatas=[{"doc_id": doc_id} for _ in chunks]
+            ids=chunk_ids,
+            embeddings=embeddings,
+            documents=chunks,
+            metadatas=[{"doc_id": doc_id, "owner_id": doc.owner_id, "filename": doc.filename} for _ in chunks]
         )
 
         doc.status = "ready_for_chat"

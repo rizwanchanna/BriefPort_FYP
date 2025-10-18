@@ -60,12 +60,65 @@ def upload_document(
     
     return {"message": "File upload successful. Ingestion process has started.", "document_id": new_doc.id}
 
+@router.post("/library/chat", response_model=schemas.ChatResponse, status_code=status.HTTP_202_ACCEPTED)
+def chat_with_library(
+    request: schemas.ChatRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(oauth2.get_current_user)
+):
+    """Chat across all documents owned by the current user. Returns an answer with inline citations to filenames/doc_ids."""
+    # Query across user's documents by passing owner_id to RAG function
+    answer = get_rag_response(request.question, owner_id=current_user.id)
+
+    # Save chat history without a specific document_id (library-level)
+    chat_history_entry = models.ChatHistory(
+        question=request.question,
+        answer=answer,
+        user_id=current_user.id,
+        document_id=None
+    )
+    db.add(chat_history_entry)
+    db.commit()
+
+    return {"answer": answer}
+
+@router.post("/{doc_id}/chat", response_model=schemas.ChatResponse, status_code=status.HTTP_202_ACCEPTED)
+def chat_with_document(
+    doc_id: int,
+    request: schemas.ChatRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(oauth2.get_current_user)
+):
+    doc = (
+        db.query(models.Document)
+        .filter(models.Document.id == doc_id)
+        .filter(models.Document.owner_id == current_user.id)
+        .first()
+    )
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    if doc.status not in INTERACTION_READY_STATUSES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Document is not ready for interaction yet. Current status: {doc.status}")
+
+    answer = get_rag_response(request.question, doc_id=doc.id)
+
+    chat_history_entry = models.ChatHistory(
+        question=request.question,
+        answer=answer,
+        user_id=current_user.id,
+        document_id=doc.id
+    )
+    db.add(chat_history_entry)
+    db.commit()
+
+    return {"answer": answer}
+
 @router.get("/{doc_id}", response_model=schemas.DocumentDisplay, status_code=status.HTTP_202_ACCEPTED)
 def get_document(doc_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(oauth2.get_current_user)):
     doc = (
         db.query(models.Document)
-        .filter(models.Document.id == doc_id) #- Separate filter
-        .filter(models.Document.owner_id == current_user.id) #- Separate filter
+        .filter(models.Document.id == doc_id) 
+        .filter(models.Document.owner_id == current_user.id) 
         .first()
     )
     if not doc:
@@ -138,33 +191,3 @@ def create_document_report(
 
     return new_report
 
-@router.post("/{doc_id}/chat", response_model=schemas.ChatResponse, status_code=status.HTTP_202_ACCEPTED)
-def chat_with_document(
-    doc_id: int,
-    request: schemas.ChatRequest,
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(oauth2.get_current_user)
-):
-    doc = (
-        db.query(models.Document)
-        .filter(models.Document.id == doc_id)
-        .filter(models.Document.owner_id == current_user.id)
-        .first()
-    )
-    if not doc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
-    if doc.status not in INTERACTION_READY_STATUSES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Document is not ready for interaction yet. Current status: {doc.status}")
-
-    answer = get_rag_response(doc_id, request.question)
-
-    chat_history_entry = models.ChatHistory(
-        question=request.question,
-        answer=answer,
-        user_id=current_user.id,
-        document_id=doc.id
-    )
-    db.add(chat_history_entry)
-    db.commit()
-
-    return {"answer": answer}
