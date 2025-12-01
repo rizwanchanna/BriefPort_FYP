@@ -21,13 +21,12 @@ def get_llm_response(prompt: str) -> str:
         return f"Error while generating response: {str(e)}"
 
 def generate_summary(doc_id: int, summary_type: str) -> str:
-    # Use embedding search to get most relevant chunks
     dummy_question = "What is the main topic and key points of this document?"
     question_embedding = embedding_model.encode(dummy_question).tolist()
     
     results = chroma_collection.query(
         query_embeddings=[question_embedding],
-        n_results=10,  # get more chunks for summary
+        n_results=10,
         where={"doc_id": doc_id}
     )
     
@@ -37,46 +36,77 @@ def generate_summary(doc_id: int, summary_type: str) -> str:
         return "Could not retrieve content for summary."
 
     summary_instruction = (
-        "Provide a concise, one-paragraph summary of the following content."
+        "Write a concise, one-paragraph summary of the provided content. "
+        "Include numbered citations like [1], [2], etc., that map directly to the 'reference list'."
         if summary_type == "short"
-        else "Provide a detailed, multi-paragraph summary of the following content. Use headings and bullet points where appropriate to structure the information."
+        else "Write a detailed, multi-paragraph summary of the provided content. "
+            "Use headings when appropriate and include numbered citations like [1], [2], etc., "
+            "that map directly to the reference list."
     )
     
-    prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-        You are a professional summarization assistant specializing in creating well-cited summaries that preserve document structure references.
-        
-        Guidelines:
-        1. Create a clear and accurate summary based ONLY on the provided content
-        2. For each paragraph in your summary, cite the specific sections or parts of the original document it summarizes
-        3. Use detailed citations in this format: (Filename, doc_id=X, section: "Introduction") or (Filename, doc_id=X, part: "Technical Analysis")
-        4. When summarizing multiple points from different parts, use multiple citations in the same paragraph
-        5. Maintain a natural flow while making it clear which original sections each summary point comes from
-        6. For longer summaries:
-           - Group related information from the same document sections together
-           - Use headings that reflect the original document structure
-           - Include page/section references in citations when available
-        
-        Remember: Each paragraph should clearly show which parts of the original document it summarizes, helping readers locate the full information.<|eot_id|><|start_header_id|>user<|end_header_id|>
-        {summary_instruction}
-        
-        Here is the content (each chunk is prefixed with its source):
+    prompt = f"""
+        <|begin_of_text|><|start_header_id|>system<|end_header_id|>
+        You are a professional summarization assistant.  
+        Your task is to generate structured summaries with **numbered citations** matching the source content.
 
-        --- CONTENT START ---  
+        ### Summary Rules
+        1. Base your summary ONLY on the provided content.
+        2. Every major claim or sentence must include at least one citation using bracket format:  
+        **[1]**, **[2]**, **[3]**, etc.
+        3. Citations must correspond to the source chunks provided in the input.
+        4. After writing the summary, include a **References** section list where each number maps to:
+        - The filename  
+        - Section or part name (if provided in the chunk)  
+        Example:  
+        `[1] (FYP.pdf, Section: "Problem Statement")`
+        `[2] (FYP.pdf, Section: "Market Growth")`
+        5. Maintain a clean and natural writing style while preserving traceability.
+        6. For multi-paragraph summaries:
+        - Group related information together
+        - Use headings reflecting the document structure
+        - Still use numeric citations for each claim
+
+        ### Output Format (STRICT)
+        Your output must follow **this exact structure**:
+        
+        **Summary:**
+        SUMMARY TEXT WITH [1], [2], [3]...
+
+        **References:**
+        [1] (filename, section/part: "...")
+        [2] (...)
+        [3] (...)
+
+        ### Formatting Rules (STRICT)
+        - Each reference **must appear on its own line**.
+        - Do NOT merge references into a single paragraph.
+        - References must not be inline or comma-separated.
+        - No text is allowed after the References section.
+
+        <|eot_id|><|start_header_id|>user<|end_header_id|>
+
+        {summary_instruction}
+
+        Here is the content. Each chunk includes source metadata:
+
+        --- CONTENT START ---
         {cited_context}
-        --- CONTENT END ---<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+        --- CONTENT END ---
+
+        <|eot_id|><|start_header_id|>assistant<|end_header_id|>
+        """
 
     summary = get_llm_response(prompt)
     
     return summary
 
 def generate_report(doc_id: int, report_type: str) -> str:
-    # Use embedding search to get most relevant chunks
     dummy_question = "What are the main findings, analysis points, and conclusions in this document?"
     question_embedding = embedding_model.encode(dummy_question).tolist()
     
     results = chroma_collection.query(
         query_embeddings=[question_embedding],
-        n_results=12,  # get more chunks for detailed report
+        n_results=12, 
         where={"doc_id": doc_id}
     )
     
@@ -107,29 +137,67 @@ def generate_report(doc_id: int, report_type: str) -> str:
         return "Invalid report type specified."
 
     prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-    You are an expert report writer specializing in creating detailed, well-cited analysis reports with precise section references.
+    You are an expert report writer specializing in creating structured, well-cited analysis reports with precise references.  
+    Your task is to generate a clean, organized report using numbered citations that correspond to a References section.
+
+    ### Citation Rules
+    1. Every major statement, claim, insight, or conclusion must include at least one numbered citation: [1], [2], [3], etc.
+    2. Citations must reference the source chunks included in the input.
+    3. For each citation number, include a corresponding entry in the References section with:
+    - Filename
+    - Section/subsection/topic/page (when provided)
+
+    Example Reference Entries:
+    `[1] (FYP.pdf, section: "Methods", topic: "Data Analysis")`
+
+    ### Section-Specific Requirements
+    **Executive Summary**
+    - Provide a high-level overview.
+    - Each key point must include citations like [1], [2].
+    - When multiple sections contributed to the point, use multiple citations: [1][3].
+
+    **Key Findings**
+    - Present findings as clear bullet points or short paragraphs.
+    - Each finding must cite exact source sections or topics.
+
+    **Detailed Analysis**
+    - Organize the analysis to follow the structure of the original document.
+    - Cite specific subsections and topics for every analytical point.
+    - When synthesizing across documents or across sections, use multiple citations: [2][4][5].
+
+    **Recommendations**
+    - Each recommendation must link to the evidence that supports it.
+    - Use citations pointing to the relevant findings or data sources.
+
+    ### Output Format (STRICT)
+    Your final output must follow **exactly** this structure:
+
+    Executive Summary  
+    (Paragraphs with citations like [1], [2], [3]...)
     
-    Guidelines:
-    1. Create a structured report following the requested format
-    2. For each section in your report, use detailed citations that specify which parts of the original document you're analyzing:
-       - Use format: (Filename, doc_id=X, section: "Methods", topic: "Data Analysis")
-       - Include multiple citations when combining information from different parts
-       - Reference specific sections, pages, or topics in citations when available
-    3. In the Executive Summary:
-       - Cite the main sections that contributed to each key point
-       - Use format: (Filename, doc_id=X, sections: ["Results", "Discussion"])
-    4. In Key Findings:
-       - Each finding should cite the specific parts of the document it's derived from
-       - Include section/topic references to help readers locate the full details
-    5. In Detailed Analysis:
-       - Structure your analysis to follow the original document's organization
-       - Cite specific subsections and topics being analyzed
-       - When synthesizing across sections, use multiple detailed citations
-    6. In Recommendations:
-       - Link each recommendation to specific evidence in the document
-       - Cite the exact sections that support each recommendation
-    
-    Remember: Help readers understand exactly which parts of the original document your analysis is based on.<|eot_id|><|start_header_id|>user<|end_header_id|>
+    Key Findings  
+    - Finding 1 [1]  
+    - Finding 2 [2][3]  
+    - Finding 3 [4]
+
+    Detailed Analysis  
+    (Structured sections with citations)
+
+    Recommendations  
+    (Recommendations with citations)
+
+    References:
+    [1] (filename, section: "...", topic: "...")
+    [2] (filename, section: "...", topic: "...")
+    [3] (filename, section: "...", topic: "...")
+
+    ### Reference Formatting Rules (STRICT)
+    - Each reference MUST appear on its own newline.
+    - References must NOT be inline, comma-separated, or merged.
+    - No text should appear after the References section.
+    - The number of reference entries must match all citation numbers used in the report.
+
+    <|eot_id|><|start_header_id|>user<|end_header_id|>
     {report_instruction}
 
     Here is the source content (each chunk is prefixed with its source):
@@ -157,10 +225,6 @@ def audiolize_summary(text: str) -> str:
 
 
 def _build_cited_context(results: dict) -> str:
-    """Given chroma query results, build a context string where each chunk is
-    prefixed with a SOURCE label (filename and doc_id) to allow the LLM to cite sources.
-    Expects results to have 'documents' and 'metadatas' aligned.
-    """
     documents = results.get('documents', [])
     metadatas = results.get('metadatas', [])
     parts = []
@@ -190,15 +254,6 @@ def _build_cited_context(results: dict) -> str:
 
 
 def get_rag_response(question: str, owner_id: int = None, doc_id: int = None, n_results: int = 8) -> str:
-    """Retrieve relevant chunks from Chroma filtered by owner_id (for multi-doc) or by doc_id (single doc).
-    Builds a cited context and asks the LLM to answer using only that context. Returns the LLM answer.
-
-    Args:
-        question: the user's question
-        owner_id: if provided, query across all documents owned by this user
-        doc_id: if provided, restrict to a single document (keeps backward compatibility)
-        n_results: how many chunks to retrieve
-    """
     question_embedding = embedding_model.encode(question).tolist()
 
     where_filter = {}
@@ -206,22 +261,20 @@ def get_rag_response(question: str, owner_id: int = None, doc_id: int = None, n_
         where_filter['doc_id'] = doc_id
     elif owner_id is not None:
         where_filter['owner_id'] = owner_id
-    # else: no filter -> global (probably not desired)
 
     context_chunks = chroma_collection.query(
         query_embeddings=[question_embedding],
         n_results=n_results,
         where=where_filter if where_filter else None
     )
-    
-    # Debug logging
+    # DEBUGING
     print(f"RAG Query - Filters: {where_filter}")
     print(f"Retrieved {len(context_chunks.get('documents', [[]])[0])} chunks")
 
     cited_context = _build_cited_context(context_chunks)
     
     if cited_context:
-        # Log first chunk to debug content quality
+        # TO CHECK CONTENT QUALITY 1st LOG
         first_chunk = cited_context.split("\n\n")[0] if "\n\n" in cited_context else cited_context
         print(f"First context chunk (preview): {first_chunk[:200]}...")
 
@@ -229,26 +282,47 @@ def get_rag_response(question: str, owner_id: int = None, doc_id: int = None, n_
         return "I couldn't find any relevant content in your documents to answer that."
 
     prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-        You are a helpful Q&A assistant specialized in providing detailed, accurate answers from document collections. 
-        
-        Guidelines:
-        1. Use ONLY the provided context chunks to answer the question
-        2. ALWAYS cite sources using (Filename, doc_id=X) format when stating facts
-        3. If different documents have conflicting information, point this out
-        4. If the answer requires information not in the context, say so clearly
-        5. Structure longer answers with clear paragraphs or bullet points
-        6. Focus on direct, factual information from the documents
-        
-        Remember: Every fact you state must have a citation to show which document it came from.<|eot_id|><|start_header_id|>user<|end_header_id|>
+        You are a reliable document-grounded Q&A assistant.  
+        Your role is to answer questions using ONLY the provided context chunks and to cite every factual statement with numbered citations.
+
+        ### Rules for Answering
+        1. Use ONLY the provided context chunks—never add outside knowledge.
+        2. Every factual statement must include at least one numbered citation: [1], [2], [3], etc.
+        3. When multiple documents support a statement, use multiple citations: [1][3][5].
+        4. If the documents contain contradictory information, clearly state this with citations.
+        5. If the answer cannot be fully answered from the context, say so explicitly.
+        6. Structure long answers using paragraphs or bullet points.
+        7. All citations must correspond to entries in a **References** section at the end.
+
+        ### Output Format (STRICT)
+        Your response must follow this exact format:
+
+        Answer:
+        (Paragraphs or bullet points with citations like [1], [2][4], [3]...)
+
+        References:
+        [1] (filename, section: "..." if provided)
+        [2] (filename, section: "...")
+        [3] (...)
+
+        ### Reference Formatting Rules (STRICT)
+        - Each reference MUST appear on its own line.
+        - Do NOT merge all references into a single sentence.
+        - The References list must include ALL citation numbers used.
+        - No content is allowed after the References section.
+
+        <|eot_id|><|start_header_id|>user<|end_header_id|>
+
         Here are the context chunks (each prefixed with its SOURCE label):
 
         --- CONTEXT START ---
         {cited_context}
         --- CONTEXT END ---
 
-        Based on these context chunks, please provide a detailed answer to the following question, making sure to cite your sources:
+        Question: {question}
 
-        Question: {question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+        Please provide a detailed, citation-supported answer following the required structure.
+        <|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
 
     answer = get_llm_response(prompt)
     return answer

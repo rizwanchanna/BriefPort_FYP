@@ -10,6 +10,9 @@ email-validator == 2.2.0
 pydantic_settings == 2.10.1
 chromadb == 1.1.0
 unstructured[local-inference] == 0.18.15
+openai-whisper == 20250625
+ffmpeg-python == 0.2.0
+langchain-openai == 0.3.33
 langchain == 0.3.27
 langchain-huggingface == 0.3.1
 transformers == 4.56.2
@@ -17,10 +20,10 @@ sentence-transformers == 5.1.1
 tf-keras == 2.20.1
 scipy == 1.16.2
 torch == 2.8.0
-openai-whisper == 20250625
-ffmpeg-python == 0.2.0
+langgraph == 1.0.0
+fpdf2==2.8.5 
+markdown==3.8.0
 
 pytest == 8.4.2
 langchain-google-genai == 2.1.12
 langchain-ollama == 0.3.8
-langchain-openai == 0.3.33

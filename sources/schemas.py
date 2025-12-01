@@ -15,7 +15,7 @@ class SummaryType(str, Enum):
     DETAILED = "detailed"
 
 class SummaryRequest(BaseModel):
-    summary_type: SummaryType = SummaryType.DETAILED
+    summary_type: SummaryType = SummaryType.SHORT
 
 class SummaryBase(BaseModel):
     content: str

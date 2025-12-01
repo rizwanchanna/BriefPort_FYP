@@ -86,8 +86,8 @@ def verify_email(token: str, db: Session = Depends(database.get_db)):
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.post("/resend-verification", status_code=status.HTTP_202_ACCEPTED)
-def resend_verification(request: schemas.Login, db: Session = Depends(database.get_db)):
-    user_in_db = db.query(models.User).filter(models.User.username == request.username).first()
+def resend_verification(request: schemas.EmailOnly, db: Session = Depends(database.get_db)):
+    user_in_db = db.query(models.User).filter(models.User.email == request.email).first()
     if not user_in_db:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -138,5 +138,3 @@ def reset_password(
     except Exception as e:
         print(f"Unexpected error during reset: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
-
-    
