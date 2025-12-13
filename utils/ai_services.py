@@ -1,4 +1,4 @@
-import os
+import os, subprocess
 import uuid
 import torch
 from scipy.io.wavfile import write as write_wav
@@ -9,6 +9,7 @@ from utils.shared_models import (
     embedding_model,
     chroma_collection,
     AUDIO_SAVE_DIRECTORY,
+    transcription_model,
     device
 )
 
@@ -133,8 +134,23 @@ def generate_report(doc_id: int, report_type: str) -> str:
         4.  **Conclusion:** A summary of the main arguments and their implications.
         Maintain a formal, scholarly tone and use precise language.
         """
+    elif report_type == "business_insights":
+        report_instruction = """
+        Analyze the following business document and generate a Business Intelligence report. Focus on:
+        1. Key Performance Indicators (KPIs) mentioned or implied.
+        2. Strategic Opportunities or Threats.
+        3. Actionable Recommendations for management.
+        """
+    elif report_type == "risk_analysis":
+        report_instruction = """
+        Analyze the following policy, claim, or risk document and generate a structured Risk Analysis Brief. Extract:
+        1. Key Terms and Definitions.
+        2. A list of specific Exclusions or Limitations.
+        3. Underwriting Insights or potential Claim Triggers.
+        4. A final assessment of the overall risk level.
+        """
     else:
-        return "Invalid report type specified."
+        report_instruction = f"Generate a general report based on the following text."
 
     prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
     You are an expert report writer specializing in creating structured, well-cited analysis reports with precise references.  
@@ -326,3 +342,41 @@ def get_rag_response(question: str, owner_id: int = None, doc_id: int = None, n_
 
     answer = get_llm_response(prompt)
     return answer
+
+def transcribe_video(video_path: str) -> str:
+    if not os.path.exists(video_path):
+        raise FileNotFoundError(f"Video file not found at: {video_path}")
+
+    audio_output_path = os.path.splitext(video_path)[0] + ".wav"
+    
+    command = [
+        "ffmpeg",
+        "-i", video_path,       # Input video file
+        "-vn",                  # No video output
+        "-acodec", "pcm_s16le", # Audio codec: WAV format
+        "-ar", "16000",         # Audio sample rate: 16kHz
+        "-ac", "1",             # Audio channels: 1 (mono)
+        audio_output_path
+    ]
+
+    try:
+        print("Extracting audio from video...")
+        subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print(f"Audio extracted successfully to: {audio_output_path}")
+
+        print("Loading transcription model...")
+        print("Transcribing audio...")
+        result = transcription_model.transcribe(audio_output_path, fp16=False)
+        transcript = result["text"]
+        print("Transcription complete.")
+        
+        return transcript
+
+    except subprocess.CalledProcessError as e:
+        print("Error during FFmpeg audio extraction:")
+        print(e.stderr.decode())
+        raise
+    finally:
+        if os.path.exists(audio_output_path):
+            os.remove(audio_output_path)
+            print(f"Cleaned up temporary audio file: {audio_output_path}")

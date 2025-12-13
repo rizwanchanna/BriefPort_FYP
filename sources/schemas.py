@@ -36,6 +36,8 @@ class SummaryDisplay(SummaryBase):
 class ReportType(str, Enum):
     FORMAL = "formal"
     ACADEMIC = "academic"
+    BUSINESS_INSIGHTS = "business_insights"
+    RISK_ANALYSIS = "risk_analysis"
 
 class ReportRequest(BaseModel):
     report_type: ReportType = ReportType.FORMAL
@@ -125,3 +127,9 @@ class UserUpdate(BaseModel):
 
 class UserDeleteConfirmation(BaseModel):
     password: str
+
+class ContactForm(BaseModel):
+    name: str
+    email: EmailStr
+    subject: str
+    message: str

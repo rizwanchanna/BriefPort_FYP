@@ -3,17 +3,17 @@ from sources import models
 from unstructured.partition.auto import partition
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from utils.shared_models import embedding_model ,chroma_collection, transcription_model
-from utils.ai_services import generate_summary, generate_report, audiolize_summary
-from sources.hashing import calculate_file_hash
-import os, subprocess
+from utils.ai_services import generate_summary, generate_report, audiolize_summary, transcribe_video
+import os
 
-def process_document_ingestion(doc_id: int, filepath: str):
+def process_document_ingestion(doc_id: int, filepath: str, file_hash: str):
 
     db = SessionLocal()
     try:
         doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
         if not doc:
             return
+
         # --- STAGE 1: FAST PROCESSING (Extraction & Embedding) ---
         doc.status = "extracting"
         db.commit()
@@ -80,7 +80,7 @@ def process_document_ingestion(doc_id: int, filepath: str):
             document_id=doc.id
         )
         db.add(report_entry)
-        doc.content_hash = calculate_file_hash(filepath)
+        doc.content_hash = file_hash
         doc.status = "complete"
         db.commit()
 
@@ -91,42 +91,3 @@ def process_document_ingestion(doc_id: int, filepath: str):
             db.commit()
     finally:
         db.close()
-
-
-def transcribe_video(video_path: str) -> str:
-    if not os.path.exists(video_path):
-        raise FileNotFoundError(f"Video file not found at: {video_path}")
-
-    audio_output_path = os.path.splitext(video_path)[0] + ".wav"
-    
-    command = [
-        "ffmpeg",
-        "-i", video_path,       # Input video file
-        "-vn",                  # No video output
-        "-acodec", "pcm_s16le", # Audio codec: WAV format
-        "-ar", "16000",         # Audio sample rate: 16kHz
-        "-ac", "1",             # Audio channels: 1 (mono)
-        audio_output_path
-    ]
-
-    try:
-        print("Extracting audio from video...")
-        subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        print(f"Audio extracted successfully to: {audio_output_path}")
-
-        print("Loading transcription model...")
-        print("Transcribing audio...")
-        result = transcription_model.transcribe(audio_output_path, fp16=False)
-        transcript = result["text"]
-        print("Transcription complete.")
-        
-        return transcript
-
-    except subprocess.CalledProcessError as e:
-        print("Error during FFmpeg audio extraction:")
-        print(e.stderr.decode())
-        raise
-    finally:
-        if os.path.exists(audio_output_path):
-            os.remove(audio_output_path)
-            print(f"Cleaned up temporary audio file: {audio_output_path}")

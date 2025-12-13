@@ -11,7 +11,7 @@ from utils.file_processor import process_document_ingestion
 from utils.ai_services import generate_summary, audiolize_summary, generate_report, get_rag_response
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
-ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt" ".mp3", ".wav", ".mp4", ".m4a"}
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".mp3", ".wav", ".mp4", ".m4a"}
 INTERACTION_READY_STATUSES = {"ready_for_chat", "processing_ai", "complete"}
 UPLOAD_DIRECTORY = "./uploads"
 
@@ -60,7 +60,7 @@ def upload_document(
     db.commit()
     db.refresh(new_doc)
     
-    background_tasks.add_task(process_document_ingestion, new_doc.id, filepath)
+    background_tasks.add_task(process_document_ingestion, new_doc.id, filepath, file_hash)
     
     return {"message": "File upload successful. Ingestion process has started.", "document_id": new_doc.id}
 
