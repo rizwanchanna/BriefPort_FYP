@@ -54,7 +54,7 @@ OPEN_ROUTER_KEY="YOUR_OPEN_ROUTER_KEY"  # e.g. for model: openai/gpt-oss-20b:fre
 # Email Configuration
 SMTP_EMAIL="YOUR_GMAIL_ACCOUNT"
 SMTP_PASSWORD="YOUR_GMAIL_APP_PASSWORD"
-SMTP_Admin_EMAIL="YOUT_Admin_GMAIL"
+SMTP_Admin_EMAIL="YOUR_Admin_GMAIL"
 ```
 
 ## 🚀 Getting Started
