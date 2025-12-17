@@ -66,8 +66,14 @@ class ChatHistoryDisplay(ChatHistoryBase):
 class ChatRequest(BaseModel):
     question: str
 
+class Citation(BaseModel):
+    number: int
+    filename: str
+    section: Optional[str] = None
+
 class ChatResponse(BaseModel):
     answer: str
+    citations: List[Citation] = []
 
 class DocumentBase(BaseModel):
     id: int

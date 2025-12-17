@@ -93,18 +93,19 @@ def chat_with_library(
 ):
     """Chat across all documents owned by the current user. Returns an answer with inline citations to filenames/doc_ids."""
 
-    answer = get_rag_response(request.question, owner_id=current_user.id)
+    response = get_rag_response(request.question, owner_id=current_user.id)
 
+    # Store the full answer WITH citations in the database
     chat_history_entry = models.ChatHistory(
         question=request.question,
-        answer=answer,
+        answer=response["full_answer"],  # Changed: Store full answer with references
         user_id=current_user.id,
         document_id=None
     )
     db.add(chat_history_entry)
     db.commit()
 
-    return {"answer": answer}
+    return {"answer": response["answer"], "citations": response["citations"]}
 
 @router.post("/{doc_id}/chat", response_model=schemas.ChatResponse, status_code=status.HTTP_202_ACCEPTED)
 def chat_with_document(
@@ -124,18 +125,19 @@ def chat_with_document(
     if doc.status not in INTERACTION_READY_STATUSES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Document is not ready for interaction yet. Current status: {doc.status}")
 
-    answer = get_rag_response(request.question, doc_id=doc.id)
+    response = get_rag_response(request.question, doc_id=doc.id)
 
+    # Store the full answer WITH citations in the database
     chat_history_entry = models.ChatHistory(
         question=request.question,
-        answer=answer,
+        answer=response["full_answer"],  # Changed: Store full answer with references
         user_id=current_user.id,
         document_id=doc.id
     )
     db.add(chat_history_entry)
     db.commit()
 
-    return {"answer": answer}
+    return {"answer": response["answer"], "citations": response["citations"]}
 
 @router.get("/{doc_id}", response_model=schemas.DocumentDisplay, status_code=status.HTTP_202_ACCEPTED)
 def get_document(doc_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(oauth2.get_current_user)):

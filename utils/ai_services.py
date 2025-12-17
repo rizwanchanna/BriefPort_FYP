@@ -240,6 +240,56 @@ def audiolize_summary(text: str) -> str:
     return filepath
 
 
+def _parse_answer_with_citations(raw_answer: str) -> dict:
+    import re
+    
+    # Split by "References:" to separate answer from citations
+    parts = re.split(r'References?:', raw_answer, maxsplit=1, flags=re.IGNORECASE)
+    
+    if len(parts) == 2:
+        answer_text = parts[0].replace("Answer:", "").strip()
+        references_text = parts[1].strip()
+    else:
+        # Fallback if format is not as expected
+        answer_text = raw_answer
+        references_text = ""
+    
+    # Parse citations from references section
+    citations = []
+    if references_text:
+        # Match patterns like:
+        # [1] (filename, section: "...")
+        # [1] (./uploads\filename.docx, section: "...")
+        citation_pattern = r'\[(\d+)\]\s*\(([^,\)]+)(?:,\s*section:\s*["\']?([^"\'\)]+)["\']?)?\)'
+        matches = re.findall(citation_pattern, references_text, re.MULTILINE)
+        
+        for match in matches:
+            number = int(match[0])
+            # Clean up filename (remove path prefixes like ./uploads\)
+            filename = match[1].strip()
+            filename = filename.replace('./uploads\\', '').replace('./uploads/', '')
+            filename = filename.replace('uploads\\', '').replace('uploads/', '')
+            
+            section = match[2].strip() if match[2] else None
+            
+            citations.append({
+                "number": number,
+                "filename": filename,
+                "section": section
+            })
+    
+    # Reconstruct the full answer with formatted references for storage
+    full_answer_with_citations = answer_text
+    if references_text:
+        full_answer_with_citations += f"\n\nReferences:\n{references_text}"
+    
+    return {
+        "answer": answer_text,
+        "citations": citations,
+        "full_answer": full_answer_with_citations  # NEW: Full formatted answer for DB storage
+    }
+
+
 def _build_cited_context(results: dict) -> str:
     documents = results.get('documents', [])
     metadatas = results.get('metadatas', [])
@@ -269,7 +319,7 @@ def _build_cited_context(results: dict) -> str:
     return "\n\n".join(parts)
 
 
-def get_rag_response(question: str, owner_id: int = None, doc_id: int = None, n_results: int = 8) -> str:
+def get_rag_response(question: str, owner_id: int = None, doc_id: int = None, n_results: int = 8) -> dict:
     question_embedding = embedding_model.encode(question).tolist()
 
     where_filter = {}
@@ -341,7 +391,10 @@ def get_rag_response(question: str, owner_id: int = None, doc_id: int = None, n_
         <|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
 
     answer = get_llm_response(prompt)
-    return answer
+    
+    # Parse the answer to extract citations
+    parsed_response = _parse_answer_with_citations(answer)
+    return parsed_response
 
 def transcribe_video(video_path: str) -> str:
     if not os.path.exists(video_path):

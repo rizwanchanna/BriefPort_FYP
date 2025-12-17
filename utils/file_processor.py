@@ -13,9 +13,24 @@ def process_document_ingestion(doc_id: int, filepath: str, file_hash: str):
         doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
         if not doc:
             return
+        
+        from utils.agentic_workflow import AgentState, agentic_workflow
+        initial_state = AgentState(
+            doc_id=doc_id,
+            filepath=filepath,
+            file_hash=file_hash,
+            owner_id=doc.owner_id,
+            extracted_content="",
+            content_type=""
+        )
+        
+        # Run the graph
+        for event in agentic_workflow.stream(initial_state):
+            # This loop will run as the graph moves from node to node
+            pass
 
         # --- STAGE 1: FAST PROCESSING (Extraction & Embedding) ---
-        doc.status = "extracting"
+        """doc.status = "extracting"
         db.commit()
         
         extracted_content = ""
@@ -82,7 +97,7 @@ def process_document_ingestion(doc_id: int, filepath: str, file_hash: str):
         db.add(report_entry)
         doc.content_hash = file_hash
         doc.status = "complete"
-        db.commit()
+        db.commit()"""
 
     except Exception as e:
         print(f"Error processing document {doc_id}: {e}")
